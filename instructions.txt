@@ -1,0 +1,127 @@
+CSE 375/475 Assignment #2 (25 points)
+Fall 2017
+
+Introduction:
+
+  The purpose of this assignment is to parallelize an existing sequential program.
+  Intel's Threading Building Blocks is an option, but you might find other
+  approaches such as using the CilkPlus compiler, OpenMP, or OpenCL to parallelize
+  an existing sequential program. If you want to explore a toolchain that is different
+  from the those listed above, please go ahead but find my approval first.
+
+  The provided program is an implementation of the O(n^3) Gaussian Elimination algorithm. You
+  might have already seen it in the past. Your goal is to get the best speedup possible over the
+  provided implementation by implementing parallelism.
+  Keep in mind that the best performance might come from using advance instructions,
+  such as SIMD (single instruction multiple data), or fine tuning important runtime
+  parameters (e.g., number of threads, size of structures).
+
+  As done for the previous assignment, also this assignment gives you freedom to explore
+  different designs, techniques, and software tools. Take advantage of this freedom and
+  don't forget your final goal: make a parallel version of the provided code that outperforms it.
+
+  It is a requirement to use the machines available at sunlab.cse.lehigh.edu. An evaluation
+  performed on your own laptop will not be considered enough, unless a specific authorization has been
+  granted by me.
+
+  In order to achieve speedup, it is important to check that the machine you are logged is
+  not overcommitted. The sunlab machines can run 8 threads simultaneously ("less /proc/cpuinfo"), therefore if
+  some other user is running along with you, you might not see the expected performance improvement.
+  Use "top" (or alternative ways) to check the commitment of the machine you are using.
+  If overcommitted, move to another machine.
+
+  The deadline for submission is Friday October 13th, 2017 at 11:55 PM. There is enough time to allow
+  each of you to study/design/develop/debug. Don't waste time!
+  The submission should be done through coursesite.lehigh.edu and should consist of:
+  - the source code of your assignment;
+  - the file gauss.cc should also include the answer to two questions (Q1 and Q2) included as comments in gauss.cc;
+  - a document containing at least three performance plots of the sequential application vs the parallel
+    version produced by changing some parameters that you believe affect application response time  -- feel free to explore;
+  - a document containing a flow chart explaining what type of parallelism has been deployed in the parallel
+    version of the code.
+
+  The cut-off date for the assignment is two days after October 15th, 2017 at 11:55 PM. Every late submission will be
+  penalized by 10 points (i.e., the maximum score you can get will be 15 points rather than 25)
+  
+  I will grade assignments during a one-on-one meeting with you.
+
+  Good luck guys!
+
+
+Step 0: Get the Code
+
+  To begin this assignment, connect via ssh to the sunlab.cse.lehigh.edu
+  host, using your Lehigh CSE Department account.  Then type the following to
+  get started:
+
+	cd ~/
+	tar -xzvf /home/palmieri/cse475-asgn2.tar.gz
+	chmod 700 cse475-asgn2
+
+  This will create a folder called "cse475-asgn2" to hold your code, and will
+  also set your permissions such that only you can access the folder
+  containing your code.
+
+
+Step 1: Change your Compiler
+
+  You will need to use a newer compiler than the default one on the sunlab
+  machines. The current compiler is gcc 4.4.7.
+  The assignment contains C++11 features, which won't compile with GCC version 4.4.7.
+  In order to switch gcc compiler, you have to load one of the modules already installed
+  for gcc:
+    execute: 'gcc --version' --> you should see "gcc (GCC) 4.4.7 20120313 (Red Hat 4.4.7-18)";
+    execute: 'which gcc' --> you should see "/usr/bin/gcc";
+    execute: 'module avail' --> you should be able to see different version of the gcc
+    compiler. You application will require at least gcc-5.4.0.
+    In order to load that module
+    execute: 'module load gcc-5.4.0'
+    execute: 'which gcc' --> you should see "/opt/gcc-5.4.0/bin/gcc";
+    execute: 'gcc --version' --> you should see "gcc (GCC) 5.4.0";
+
+  Now you can compile your application. A Makefile has been provided. Given the freedom left
+  to each of you in implementing your solution, you might need to modify the included Makefile to
+  include your features (e.g., to use TBB).
+  You must change the version of your compiler every time you start a new terminal window.
+  Note that not all the distributed source files initially compile.
+
+
+Step 2: Install and link the desired toolchain (e.g., TBB, CilkPlus, ...).
+
+  If you decide to go for Intel TBB, the following steps should suffice (at least they work for me)
+  to install TBB using the provided binary files. Download from here: https://github.com/01org/tbb/releases
+
+	---> wget https://github.com/01org/tbb/releases/download/2018_U1/tbb2018_20170919oss_lin.tgz
+	---> tar -xvzf tbb2018_20170919oss_lin.tgz (-- takes a couple of minutes)
+	---> cd tbb2018_20170919oss/bin
+	---> source tbbvars.sh intel64 linux auto_tbbroot
+
+  The last command has to be executed every time you open a new terminal.
+
+  Note that, if you decide to build (and not just installing from binary as just done) your toolchain,
+  your should be careful in not exceeding your space quota. If additional space is needed,
+  find alternative solutions or contact me and I' ll figure something out.
+
+
+Step 3: Implement a parallel version of Gaussian Elimination
+
+  You should pay close attention to speedup at large values of n (at least
+  2048).  The provided code is not too naive. Fight to get speedup
+  and give up only when you feel there is no room for improvement.
+  A script file (test.sh) has been provided to test the performance of your code
+  by varying value of n. Feel free to play with that script file to test your system
+  by varying other parameters. While producing your plots to include in the submission,
+  I expect one plot where on the x-axis there is "n" as provided in this script file,
+  and on the y-axis there is the collected response time. At least two lines should be
+  in this plot: the provided sequential version and your parallel version.
+
+
+
+
+
+
+
+
+
+
+
