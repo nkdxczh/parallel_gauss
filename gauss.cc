@@ -169,16 +169,30 @@ void parallelGauss(matrix_t& A, vector_t& B, vector_t& X) {
         // NB: this will lead to all subsequent rows having a 0 in the ith
         // column
         tbb::parallel_for( 
-            tbb::blocked_range<int>(i+1, A.getSize()), 
+            tbb::blocked_range<int>(i+1, A.getSize()),
             [&](tbb::blocked_range<int> r ) {
-                for (int k = r.begin(); k != r.end(); ++k){
+                for (int k = r.begin(); k != r.end(); ++k) {
                     double c = -A[k][i] / A[i][i];
+
                     for (int j = i; j < A.getSize(); ++j)
                         if (i == j)
                             A[k][j] = 0;
                         else
                             A[k][j] += c * A[i][j];
                     B[k] += c * B[i];
+
+                    /*tbb::parallel_for(
+                    tbb::blocked_range<int>(i, A.getSize()),
+                            [&](tbb::blocked_range<int> rr) {
+                                for (int j = rr.begin(); j != rr.end(); ++j)
+                                    if (i == j)
+                                        A[k][j] = 0;
+                                    else
+                                        A[k][j] += c * A[i][j];
+                            }
+                    );
+                    B[k] += c * B[i];*/
+
                 }
             }
         );
