@@ -180,6 +180,8 @@ void parallelGauss(matrix_t& A, vector_t& B, vector_t& X) {
                         else
                             A[k][j] += c * A[i][j];
                     B[k] += c * B[i];
+                }
+            });
 
                     /*tbb::parallel_for(
                     tbb::blocked_range<int>(i, A.getSize()),
@@ -192,10 +194,6 @@ void parallelGauss(matrix_t& A, vector_t& B, vector_t& X) {
                             }
                     );
                     B[k] += c * B[i];*/
-
-                }
-            }
-        );
     }
 
     // NB: A is now an upper triangular matrix
@@ -203,8 +201,12 @@ void parallelGauss(matrix_t& A, vector_t& B, vector_t& X) {
     // Use back substitution to solve equation A * x = b
     for (int i = A.getSize() - 1; i >= 0; --i) {
         X[i] = B[i] / A[i][i];
-        for (int k = i - 1; k >= 0; --k)
-            B[k] -= A[k][i] * X[i];
+        tbb::parallel_for(
+                tbb::blocked_range<int>(0, i),
+                [&](tbb::blocked_range<int> r ) {
+                    for (int k = r.begin(); k != r.end(); ++k)
+                        B[k] -= A[k][i] * X[i];
+                });
     }
 }
 
@@ -229,7 +231,7 @@ void check(matrix_t& A, vector_t& B, vector_t& X) {
             return;
         }
     }
-    cout << "Verification succeeded" << endl;
+    //cout << "Verification succeeded" << endl;
 }
 
 // This function prints some helpful usage information
@@ -272,7 +274,7 @@ int main(int argc, char *argv[]) {
 
     // Print the configuration... this makes results of scripted experiments
     // much easier to parse
-    cout << "r,n,g,p = " << seed << ", " << size << ", " << range << ", " << parallel << endl;
+    //cout << "r,n,g,p = " << seed << ", " << size << ", " << range << ", " << parallel << endl;
 
     // Create our matrix and vectors, and populate them with default values
     matrix_t A(size);
@@ -313,5 +315,6 @@ int main(int argc, char *argv[]) {
 
     // Print the execution time
     duration<double> time_span = duration_cast<duration<double>>(endtime - starttime);
-    cout << "Total execution time: " << time_span.count() << " seconds" << endl;
+    //cout << "Total execution time: " << time_span.count() << " seconds" << endl;
+    cout << time_span.count() << endl;
 }
