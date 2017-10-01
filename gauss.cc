@@ -140,6 +140,37 @@ void gauss(matrix_t& A, vector_t& B, vector_t& X) {
 // For a system of equations A * x = b, with Matrix A and Vectors B and X,
 // and assuming we only know A and b, compute x via the Gaussian Elimination
 // technique
+class Body{
+    int col;
+    int row;
+    matrix_t& m;
+    double big;
+public:
+    Body(int col_, matrix_t& m_):col(col_), m(m_), big(abs(m[col][col])), row(col_){ }
+    Body(Body& b, tbb::split):col(b.col), m(b.m), big(abs(m[col][col])), row(col){}
+    void assign(Body& b){big = b.big; row = b.row;}
+
+    template<typename Tag>
+    void operator()(const tbb::blocked_range<int>& r, Tag tag){
+        for(int k = r.begin(); k != r.end(); ++k){
+            if(!Tag::is_final_scan) {
+                if (abs(m[k][col]) > big) {
+                    big = abs(m[k][col]);
+                    row = k;
+                }
+            }
+        }
+    }
+    int get_row(){return row;}
+    void reverse_join(Body& b){
+        if(b.big > big){
+            big = b.big;
+            row = b.row;
+        }
+    }
+    int get_big(){return big;}
+};
+
 void parallelGauss(matrix_t& A, vector_t& B, vector_t& X) {
     // iterate over rows
     for (int i = 0; i < A.getSize(); ++i) {
@@ -153,7 +184,13 @@ void parallelGauss(matrix_t& A, vector_t& B, vector_t& X) {
                 big = abs(A[k][i]);
                 row = k;
             }
-        }
+        }*/
+
+        Body body(i, A);
+        tbb::parallel_scan(tbb::blocked_range<int>(i+1, A.getSize()),body);
+        double big = body.get_big();
+        int row = body.get_row();
+
         // Given our random initialization, singular matrices are possible!
         if (big == 0.0) {
             cout << "The matrix is singular!" << endl;
@@ -168,9 +205,37 @@ void parallelGauss(matrix_t& A, vector_t& B, vector_t& X) {
         //
         // NB: this will lead to all subsequent rows having a 0 in the ith
         // column
-        tbb::parallel_for( 
-            tbb::blocked_range<int>(i+1, A.getSize()),
-            [&](tbb::blocked_range<int> r ) {
+        tbb::parallel_for(
+                tbb::blocked_range<int>(i + 1, A.getSize()),
+                [&](tbb::blocked_range<int> r) {
+                    for (int k = r.begin(); k != r.end(); ++k) {
+                        double c = -A[k][i] / A[i][i];
+
+                        for (int j = i; j < A.getSize(); ++j)
+                            if (i == j)
+                                A[k][j] = 0;
+                            else
+                                A[k][j] += c * A[i][j];
+                        B[k] += c * B[i];
+                    }
+                });
+
+        /*tbb::parallel_for(
+        tbb::blocked_range<int>(i, A.getSize()),
+                [&](tbb::blocked_range<int> rr) {
+                    for (int j = rr.begin(); j != rr.end(); ++j)
+                        if (i == j)
+                            A[k][j] = 0;
+                        else
+                            A[k][j] += c * A[i][j];
+                }
+        );
+        B[k] += c * B[i];*/
+    }
+
+    /*tbb::parallel_for(
+            tbb::blocked_range<int>(i + 1, A.getSize()),
+            [&](tbb::blocked_range<int> r) {
                 for (int k = r.begin(); k != r.end(); ++k) {
                     double c = -A[k][i] / A[i][i];
 
@@ -181,25 +246,11 @@ void parallelGauss(matrix_t& A, vector_t& B, vector_t& X) {
                             A[k][j] += c * A[i][j];
                     B[k] += c * B[i];
                 }
-            });
-
-                    /*tbb::parallel_for(
-                    tbb::blocked_range<int>(i, A.getSize()),
-                            [&](tbb::blocked_range<int> rr) {
-                                for (int j = rr.begin(); j != rr.end(); ++j)
-                                    if (i == j)
-                                        A[k][j] = 0;
-                                    else
-                                        A[k][j] += c * A[i][j];
-                            }
-                    );
-                    B[k] += c * B[i];*/
-    }
-
+            });*/
     // NB: A is now an upper triangular matrix
 
     // Use back substitution to solve equation A * x = b
-    for (int i = A.getSize() - 1; i >= 0; --i) {
+    /*for (int i = A.getSize() - 1; i >= 0; --i) {
         X[i] = B[i] / A[i][i];
         tbb::parallel_for(
                 tbb::blocked_range<int>(0, i),
@@ -207,6 +258,12 @@ void parallelGauss(matrix_t& A, vector_t& B, vector_t& X) {
                     for (int k = r.begin(); k != r.end(); ++k)
                         B[k] -= A[k][i] * X[i];
                 });
+    }*/
+    // Use back substitution to solve equation A * x = b
+    for (int i = A.getSize() - 1; i >= 0; --i) {
+        X[i] = B[i] / A[i][i];
+        for (int k = i - 1; k >= 0; --k)
+            B[k] -= A[k][i] * X[i];
     }
 }
 
