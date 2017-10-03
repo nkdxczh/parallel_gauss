@@ -12,15 +12,17 @@ def load(Dir, id):
 	i = 0
 	while i < len(content):
 		x.append(int(content[i]))
-		s = 0
+		s1 = 0
+		s2 = 0
 		for j in range(5):
 			i += 1
 			t1 = float(content[i])
+			s1 += t1
 			i += 1
 			t2 = float(content[i])
-			s += t1 / t2
-		y.append(s / 5)	
-		y0.append(1.0)
+			s2 += t2
+		y.append(s2 / 5)	
+		y0.append(s1 / 5)
 		i += 1
 
 	return x, y, y0

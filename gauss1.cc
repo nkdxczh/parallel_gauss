@@ -79,7 +79,7 @@ void initializeFromSeed(int seed, matrix_t& A, vector_t& B, unsigned int range) 
 void print(matrix_t& A, vector_t& B) {
     for (int i = 0; i < A.getSize(); ++i) {
         for (int j = 0; j < A.getSize(); ++j)
-            cout << A[j][i] << "\t";
+            cout << A[i][j] << "\t";
         cout << " | " << B[i] << "\n";
     }
     cout << endl;
@@ -97,8 +97,8 @@ void gauss(matrix_t& A, vector_t& B, vector_t& X) {
         double big = abs(A[i][i]);
         int row = i;
         for (int k = i + 1; k < A.getSize(); ++k) {
-            if (abs(A[i][k]) > big) {
-                big = abs(A[i][k]);
+            if (abs(A[k][i]) > big) {
+                big = abs(A[k][i]);
                 row = k;
             }
         }
@@ -109,46 +109,22 @@ void gauss(matrix_t& A, vector_t& B, vector_t& X) {
         }
 
         // swap so max column value is in ith row
-        //std::swap(A[i], A[row]);
-        //std::swap(B[i], B[row]);
-        for (int k = i; k != A.getSize(); ++k) {
-            double tem = A[k][i];
-            A[k][i] = A[k][row];
-            A[k][row] = tem;
-        }
-        double tem = B[i];
-        B[i] = B[row];
-        B[row] = tem;
-
-        double c[A.getSize() - i - 1];
-        for(int k = i + 1; k < A.getSize(); ++k){
-            c[k - i - 1] = -A[i][k] / A[i][i];
-        }
-
-        // column
-        for (int k = i+1; k < A.getSize(); ++k) {
-            for (int j = i + 1; j < A.getSize(); ++j)
-                A[k][j] += c[j - i - 1] * A[k][i];
-        }
-
-        for(int k = i + 1; k < A.getSize(); ++k){
-            A[i][k] = 0;
-            B[k] += c[k - i -1] * B[i];
-        }
+        std::swap(A[i], A[row]);
+        std::swap(B[i], B[row]);
 
         // Eliminate the ith row from all subsequent rows
         //
         // NB: this will lead to all subsequent rows having a 0 in the ith
         // column
-        /*for (int k = i + 1; k < A.getSize(); ++k) {
+        for (int k = i + 1; k < A.getSize(); ++k) {
             double c = -A[k][i] / A[i][i];
             for (int j = i; j < A.getSize(); ++j)
                 if (i == j)
-                    A[j][k] = 0;
+                    A[k][j] = 0;
                 else
                     A[k][j] += c * A[i][j];
             B[k] += c * B[i];
-        }*/
+        }
     }
 
     // NB: A is now an upper triangular matrix
@@ -157,7 +133,7 @@ void gauss(matrix_t& A, vector_t& B, vector_t& X) {
     for (int i = A.getSize() - 1; i >= 0; --i) {
         X[i] = B[i] / A[i][i];
         for (int k = i - 1; k >= 0; --k)
-            B[k] -= A[i][k] * X[i];
+            B[k] -= A[k][i] * X[i];
     }
 }
 
@@ -199,22 +175,21 @@ void parallelGauss(matrix_t& A, vector_t& B, vector_t& X) {
     // iterate over rows
     for (int i = 0; i < A.getSize(); ++i) {
         // NB: we are now on the ith column
-        //print(A,B);
 
         // For numerical stability, find the largest value in this column
-        double big = abs(A[i][i]);
+        /*double big = abs(A[i][i]);
         int row = i;
         for (int k = i + 1; k < A.getSize(); ++k) {
-            if (abs(A[i][k]) > big) {
-                big = abs(A[i][k]);
+            if (abs(A[k][i]) > big) {
+                big = abs(A[k][i]);
                 row = k;
             }
-        }
+        }*/
 
-        /*Body body(i, A);
+        Body body(i, A);
         tbb::parallel_scan(tbb::blocked_range<int>(i + 1, A.getSize()), body);
         double big = body.get_big();
-        int row = body.get_row();*/
+        int row = body.get_row();
 
         // Given our random initialization, singular matrices are possible!
         if (big == 0.0) {
@@ -223,43 +198,27 @@ void parallelGauss(matrix_t& A, vector_t& B, vector_t& X) {
         }
 
         // swap so max column value is in ith row
-        //std::swap(A[i], A[row]);
-        //std::swap(B[i], B[row]);
-        // column
-        tbb::parallel_for(
-                tbb::blocked_range<int>(i, A.getSize()),
-                [&](tbb::blocked_range<int> r) {
-                    for (int k = r.begin(); k != r.end(); ++k) {
-                        double tem = A[k][i];
-                        A[k][i] = A[k][row];
-                        A[k][row] = tem;
-                    }
-                });
-        double tem = B[i];
-        B[i] = B[row];
-        B[row] = tem;
+        std::swap(A[i], A[row]);
+        std::swap(B[i], B[row]);
 
         // Eliminate the ith row from all subsequent rows
         //
         // NB: this will lead to all subsequent rows having a 0 in the ith
-        double c[A.getSize() - i - 1];
-        for(int k = i + 1; k < A.getSize(); ++k){
-            c[k - i - 1] = -A[i][k] / A[i][i];
-        }
         // column
         tbb::parallel_for(
                 tbb::blocked_range<int>(i + 1, A.getSize()),
                 [&](tbb::blocked_range<int> r) {
                     for (int k = r.begin(); k != r.end(); ++k) {
-                        for (int j = i + 1; j < A.getSize(); ++j)
-                            A[k][j] += c[j - i - 1] * A[k][i];
+                        double c = -A[k][i] / A[i][i];
+
+                        for (int j = i; j < A.getSize(); ++j)
+                            if (i == j)
+                                A[k][j] = 0;
+                            else
+                                A[k][j] += c * A[i][j];
+                        B[k] += c * B[i];
                     }
                 });
-
-        for(int k = i + 1; k < A.getSize(); ++k){
-            A[i][k] = 0;
-            B[k] += c[k - i -1] * B[i];
-        }
 
         /*tbb::parallel_for(
         tbb::blocked_range<int>(i, A.getSize()),
@@ -304,7 +263,64 @@ void parallelGauss(matrix_t& A, vector_t& B, vector_t& X) {
     for (int i = A.getSize() - 1; i >= 0; --i) {
         X[i] = B[i] / A[i][i];
         for (int k = i - 1; k >= 0; --k)
-            B[k] -= A[i][k] * X[i];
+            B[k] -= A[k][i] * X[i];
+    }
+}
+
+void parallelGauss1(matrix_t& A, vector_t& B, vector_t& X) {
+    // iterate over rows
+    for (int i = 0; i < A.getSize(); ++i) {
+        // NB: we are now on the ith column
+
+        // For numerical stability, find the largest value in this column
+        double big = fabs(A[i][0]);
+        int col = 0;
+        for (int k = 1; k < A.getSize(); ++k) {
+            if (fabs(A[i][k]) > big) {
+                big = fabs(A[i][k]);
+                col = k;
+            }
+        }
+
+        // Given our random initialization, singular matrices are possible!
+        if (big == 0.0) {
+            cout << "The matrix is singular!" << endl;
+            exit(-1);
+        }
+
+        // Eliminate the ith row from all subsequent rows
+        //
+        // NB: this will lead to all subsequent rows having a 0 in the ith
+        // column
+        tbb::parallel_for(
+                tbb::blocked_range<int>(i + 1, A.getSize()),
+                [&](tbb::blocked_range<int> r) {
+                    for (int k = r.begin(); k != r.end(); ++k) {
+                        double c = -A[k][col] / A[i][col];
+
+                        for (int j = 0; j < A.getSize(); ++j)
+                            if (col == j)
+                                A[k][j] = 0;
+                            else
+                                A[k][j] += c * A[i][j];
+                        B[k] += c * B[i];
+                    }
+                });
+    }
+
+    // Use back substitution to solve equation A * x = b
+    for (int i = A.getSize() - 1; i >= 0; --i) {
+        int ec;
+        for(int j = 0; j < A.getSize(); ++j)
+            if(A[i][j] != 0){
+                ec = j;
+                break;
+            }
+        X[ec] = B[i] / A[i][ec];
+        for (int k = i - 1; k >= 0; --k) {
+            B[k] -= A[k][ec] * X[ec];
+            A[k][ec] = 0;
+        }
     }
 }
 
@@ -320,7 +336,7 @@ void check(matrix_t& A, vector_t& B, vector_t& X) {
         // compute the value of B based on X
         double ans = 0;
         for (int j = 0; j < A.getSize(); j++)
-            ans += A[j][i] * X[j];
+            ans += A[i][j] * X[j];
 
         double ratio = std::max(abs(ans / B[i]), abs(B[i] / ans));
         if (ratio != 1) {
@@ -390,7 +406,7 @@ int main(int argc, char *argv[]) {
     auto starttime = high_resolution_clock::now();
     if (parallel)
         //cout << "Parallel version not yet implemented" << endl;
-        parallelGauss(A, B, X);
+        parallelGauss1(A, B, X);
     else
         gauss(A, B, X);
     auto endtime = high_resolution_clock::now();
