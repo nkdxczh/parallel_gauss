@@ -61,7 +61,7 @@ public:
 
 // Given a random seed, this method populates the elements of A and then B with a
 // sequence of random numbers in the range (-range...range)
-void initializeFromSeed(int seed, matrix_t& A, vector_t& B, unsigned int range) {
+void initializeFromSeed(int seed, matrix_t& A, vector_t& B, int range) {
     // Use a Mersenne Twister to create doubles in the requested range
     std::mt19937 seeder(seed);
     auto mt_rand = std::bind(std::uniform_real_distribution<double>(-range,range),

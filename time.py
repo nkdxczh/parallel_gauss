@@ -29,13 +29,13 @@ def load(Dir, id):
 
 Dir = 'outputFiles/'
 
-for i in range(1,5):
+for i in range(1,4):
 	x, y, y0 = load(Dir, str(i))
 	#fit = np.polyfit(x, y, 7)
 	#fit_fn = np.poly1d(fit)
 
 	plt.plot(x,y,'*',x,y,'-', label = str(i))
 
-plt.plot(x,y0,'--')
+	plt.plot(x,y0,'--')
 plt.legend(loc='best')
 plt.show()

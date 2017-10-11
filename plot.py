@@ -9,6 +9,7 @@ def load(Dir, id):
 	x = []
 	y = []
 	y0 = []
+	baseline = []
 	i = 0
 	while i < len(content):
 		x.append(int(content[i]))
