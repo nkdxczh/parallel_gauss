@@ -289,7 +289,7 @@ void parallelGauss_col(matrix_t& A, vector_t& B, vector_t& X) {
 
         // swap so max column value is in ith row
         // parallel swap
-        /*tbb::parallel_for(
+        tbb::parallel_for(
                 tbb::blocked_range<int>(i, A.getSize()),
                 [&](tbb::blocked_range<int> r) {
                     for (int k = r.begin(); k != r.end(); ++k) {
@@ -297,21 +297,31 @@ void parallelGauss_col(matrix_t& A, vector_t& B, vector_t& X) {
                         A[k][i] = A[k][row];
                         A[k][row] = tem;
                     }
-                });*/
+                });
         // serial swap
-        for (int k = i; k != A.getSize(); ++k) {
+        /*for (int k = i; k != A.getSize(); ++k) {
             double tem = A[k][i];
             A[k][i] = A[k][row];
             A[k][row] = tem;
         }
         double tem = B[i];
         B[i] = B[row];
-        B[row] = tem;
+        B[row] = tem;*/
 
         // Eliminate the ith row from all subsequent rows
         //
         // NB: this will lead to all subsequent rows having a 0 in the ith
         double c[A.getSize() - i - 1];
+        // parallel compute
+        /*tbb::parallel_for(
+                tbb::blocked_range<int>(i + 1, A.getSize()),
+                [&](tbb::blocked_range<int> r) {
+                    for (int k = r.begin(); k != r.end(); ++k) {
+                        c[k - i - 1] = -A[i][k] / A[i][i];
+                    }
+                });*/
+
+        //serial compute
         for(int k = i + 1; k < A.getSize(); ++k){
             c[k - i - 1] = -A[i][k] / A[i][i];
         }
@@ -325,6 +335,17 @@ void parallelGauss_col(matrix_t& A, vector_t& B, vector_t& X) {
                     }
                 });
 
+        // parallel compute
+        /*tbb::parallel_for(
+                tbb::blocked_range<int>(i + 1, A.getSize()),
+                [&](tbb::blocked_range<int> r) {
+                    for (int k = r.begin(); k != r.end(); ++k) {
+                        A[i][k] = 0;
+                        B[k] += c[k - i -1] * B[i];
+                    }
+                });*/
+
+        // serial compute
         for(int k = i + 1; k < A.getSize(); ++k){
             A[i][k] = 0;
             B[k] += c[k - i -1] * B[i];
@@ -348,20 +369,17 @@ void parallelGauss_col(matrix_t& A, vector_t& B, vector_t& X) {
     // NB: A is now an upper triangular matrix
 
     // Use back substitution to solve equation A * x = b
-    /*for (int i = A.getSize() - 1; i >= 0; --i) {
+
+    for (int i = A.getSize() - 1; i >= 0; --i) {
         X[i] = B[i] / A[i][i];
+        /*for (int k = i - 1; k >= 0; --k)
+            B[k] -= A[i][k] * X[i];*/
         tbb::parallel_for(
                 tbb::blocked_range<int>(0, i),
                 [&](tbb::blocked_range<int> r ) {
                     for (int k = r.begin(); k != r.end(); ++k)
-                        B[k] -= A[k][i] * X[i];
+                        B[k] -= A[i][k] * X[i];
                 });
-    }*/
-    // Use back substitution to solve equation A * x = b
-    for (int i = A.getSize() - 1; i >= 0; --i) {
-        X[i] = B[i] / A[i][i];
-        for (int k = i - 1; k >= 0; --k)
-            B[k] -= A[i][k] * X[i];
     }
 }
 
@@ -422,24 +440,24 @@ void parallelGauss_row(matrix_t& A, vector_t& B, vector_t& X) {
         // For numerical stability, find the largest value in this column
 
         //serial
-        /*double big = abs(A[i][i]);
+        double big = abs(A[i][i]);
         int row = i;
         for (int k = i + 1; k < A.getSize(); ++k) {
             if (abs(A[i][k]) > big) {
                 big = abs(A[i][k]);
                 row = k;
             }
-        }*/
+        }
 
         //parallel
-        Max_row body(i, A);
+        //Max_row body(i, A);
         //reduce
         //tbb::parallel_reduce(tbb::blocked_range<int>(i + 1, A.getSize()), body);
         //scan
-        tbb::parallel_scan(tbb::blocked_range<int>(i + 1, A.getSize()), body);
+        //tbb::parallel_scan(tbb::blocked_range<int>(i + 1, A.getSize()), body);
 
-        double big = body.get_big();
-        int row = body.get_row();
+        //double big = body.get_big();
+        //int row = body.get_row();
 
         // Given our random initialization, singular matrices are possible!
         if (big == 0.0) {
@@ -455,7 +473,7 @@ void parallelGauss_row(matrix_t& A, vector_t& B, vector_t& X) {
         //
         // NB: this will lead to all subsequent rows having a 0 in the ith
         // column
-        tbb::parallel_for(
+        /*tbb::parallel_for(
                 tbb::blocked_range<int>(i + 1, A.getSize()),
                 [&](tbb::blocked_range<int> r) {
                     for (int k = r.begin(); k != r.end(); ++k) {
@@ -468,7 +486,17 @@ void parallelGauss_row(matrix_t& A, vector_t& B, vector_t& X) {
                                 A[k][j] += c * A[i][j];
                         B[k] += c * B[i];
                     }
-                });
+                });*/
+
+        for (int k = i + 1; k < A.getSize(); ++k) {
+            double c = -A[k][i] / A[i][i];
+            for (int j = i; j < A.getSize(); ++j)
+                if (i == j)
+                    A[k][j] = 0;
+                else
+                    A[k][j] += c * A[i][j];
+            B[k] += c * B[i];
+        }
     }
 
     // Use back substitution to solve equation A * x = b
@@ -496,6 +524,9 @@ void parallelGauss_row(matrix_t& A, vector_t& B, vector_t& X) {
 // Q2:
 // Why is the code of the check so complex and involves calculating the ratio?
 // The answer is related with the used data types.
+
+//Answer: Because We use double to save the result, which has precision loss.
+//So the ans would not equal to the original value. But the difference is so small that it could be ignored in division calculation.
 
 void check_col(matrix_t& A, vector_t& B, vector_t& X) {
     for (int i = 0; i < A.getSize(); ++i) {
@@ -553,7 +584,7 @@ int main(int argc, char *argv[]) {
     bool verbose  = false; // should we print some diagnostics?
     bool docheck  = true;  // should we verify the output?
     bool parallel = false; // use parallelism?
-    bool row = false;
+    bool row = true;
 
     // Parse the command line options:
     int o;

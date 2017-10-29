@@ -28,13 +28,17 @@ def load(Dir, id):
 
 Dir = 'outputFiles/'
 
-for i in range(1,5):
+labels = ["row based","scan", "reduce", "column based"]
+for i in [2,5]:
 	x, y, y0 = load(Dir, str(i))
 	#fit = np.polyfit(x, y, 7)
 	#fit_fn = np.poly1d(fit)
 
-	plt.plot(x,y,'*',x,y,'-', label = str(i))
+	plt.plot(x,y,'*',x,y,'-', label = labels[i-2])
 
-plt.plot(x,y0,'--')
+plt.plot(x,y0,'--', label = "baseline")
+plt.xlabel('Matrix Size')
+plt.ylabel('Speed Up')
+plt.title('Column Based Gauss vs Row Based Gauss')
 plt.legend(loc='best')
 plt.show()
